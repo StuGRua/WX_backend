@@ -1,12 +1,13 @@
 import datetime
 import json
 
-from flask import jsonify, abort, request, make_response
+from flask import jsonify, abort, request, make_response, render_template
 from flask import url_for
 from model.model import *
 from utils.ResToOrder import OrderToDict, OrderToDict_withP
 from utils.ResponseStat import *
 from utils.timestampFix import *
+
 
 # WX_APPID = 'wx933173854a5a9ba2'
 # WX_SECRET = 'ebf07d30198d42d3322fcbc82c996f9e'
@@ -62,7 +63,9 @@ def new_user():
 # 失败: 返回400
 # 接口需要的 data:{user_name,major,grade}
 # 备注：user_status默认为'OK'
+
 @app.route('/api/modify_user', methods=['POST'])
+@auth.login_required
 def modify_user():
     print(request.json)
     rqjson = request.json
@@ -74,8 +77,8 @@ def modify_user():
     if userid is None or grade is None or user_name is None:  # missing arguments
         resp = response_err('missing arguments', "400 status")
         abort(resp)  # no existing user
-    pre_fix = db.session.query(User).filter(User.userid == userid).first()
-    if pre_fix is None:
+    pre_fix = db.session.query(User).filter(User.userid == userid)
+    if pre_fix.first() is None:
         resp = response_err('no existing user', "400 status")
         abort(resp)  # no existing user
 
@@ -171,7 +174,7 @@ def all_undo_order():
 def my_order_pub():
     # res = Order.query.filter_by(pub_id=g.user.userid).all()
     res = db.session.query(User, Order).outerjoin(Order, Order.pub_id == User.userid).filter(
-        Order.pub_id == g.user.userid)
+        Order.pub_id == g.user.userid, Order.order_stat != '已完成', Order.order_stat != '已删除')
     res = OrderToDict_withP(res)
     return jsonify(res), 201
 
@@ -186,7 +189,40 @@ def my_order_pub():
 @auth.login_required
 def my_order_recv():
     res = db.session.query(User, Order).outerjoin(Order, Order.pub_id == User.userid).filter(
-        Order.rec_id == g.user.userid)
+        Order.rec_id == g.user.userid, Order.order_stat != '已完成')
+    # res = Order.query.join(User,Order.pub_id==User.userid).filter(User.userid==g.user.userid).all()
+    # res = Order.query.filter_by(rec_id=g.user.userid)
+    res = OrderToDict_withP(res)
+    return jsonify(res), 201
+
+
+# 我发布的 历史 订单列表
+# http方式：GET
+# 成功：返回 全部 当前用户 发布 的订单
+# 失败: 返回验证失败
+# 接口需要的 data:{}
+# 备注：需要验证
+@app.route('/api/my_order_pub/history')
+@auth.login_required
+def my_order_pub_history():
+    # res = Order.query.filter_by(pub_id=g.user.userid).all()
+    res = db.session.query(User, Order).outerjoin(Order, Order.pub_id == User.userid).filter(
+        Order.pub_id == g.user.userid)#.filter(Order.order_stat == '已删除' or Order.order_stat == '正在进行')
+    res = OrderToDict_withP(res)
+    return jsonify(res), 201
+
+
+# 我接受的 历史 订单列表
+# http方式：GET
+# 成功：返回 全部 当前用户 接受 的订单
+# 失败: 返回验证失败
+# 接口需要的 data:{}
+# 备注：需要验证
+@app.route('/api/my_order_recv/history')
+@auth.login_required
+def my_order_recv_history():
+    res = db.session.query(User, Order).outerjoin(Order, Order.pub_id == User.userid).filter(
+        Order.rec_id == g.user.userid)#.filter(Order.order_stat == '已完成')
     # res = Order.query.join(User,Order.pub_id==User.userid).filter(User.userid==g.user.userid).all()
     # res = Order.query.filter_by(rec_id=g.user.userid)
     res = OrderToDict_withP(res)
@@ -206,9 +242,6 @@ def publish_order():
     print(rqjson)
     order_title = rqjson.get('order_title')
     pub_id = g.user.userid
-    # rec_id=rqjson.get('rec_id')
-    # start_time = datetime.datetime.strptime(rqjson.get('start_time'), '%Y-%m-%d %H:%M')
-    # end_time = datetime.datetime.strptime(rqjson.get('end_time'), '%Y-%m-%d %H:%M')
     start_time = StrtoStamp(rqjson.get('start_time'))
     end_time = StrtoStamp(rqjson.get('end_time'))
     order_payment = rqjson.get('order_payment')
@@ -318,7 +351,7 @@ def cancel_rec_order():
         resp = response_err('no existing order', "400 status")
         abort(resp)  # no existing order
     db.session.query(Order).filter(Order.order_id == order_id). \
-        update({"order_stat": '未接受',"rec_id":-1})
+        update({"order_stat": '未接受', "rec_id": -1})
     db.session.commit()
     return jsonify({'order_id': order_id, "order_stat": '未接受'}), 201
 
@@ -337,17 +370,16 @@ def modify_order():
     order_title = rqjson.get('order_title')
     pub_id = g.user.userid
     # rec_id=rqjson.get('rec_id')
-    start_time = datetime.datetime.strptime(rqjson.get('start_time'), '%Y-%m-%d')
-    end_time = datetime.datetime.strptime(rqjson.get('end_time'), '%Y-%m-%d')
+    start_time = StrtoStamp(rqjson.get('start_time'))
+    end_time = StrtoStamp(rqjson.get('end_time'))
     order_payment = rqjson.get('order_payment')
     order_info = rqjson.get('order_info')
 
     if order_title is None or pub_id is None or order_payment is None:
         resp = response_err('missing arguments', "400 status")
         abort(resp)  # missing arguments
-    pre_fix = db.session.query(Order).filter(Order.pub_id == pub_id, Order.order_id == order_id,
-                                             Order.order_stat != '已完成' and Order.order_stat != '已删除').first()
-    if pre_fix is None:
+    pre_fix = db.session.query(Order).filter(Order.pub_id == pub_id, Order.order_id == order_id,Order.rec_id==-1)
+    if pre_fix.first() is None:
         resp = response_err('no existing order', "400 status")
         abort(resp)  # no existing order
     pre_fix.update(
@@ -356,6 +388,40 @@ def modify_order():
     db.session.commit()
     return (jsonify({'order_id': order_id}), 201,
             {'Location': url_for('my_order_pub', id=g.user.userid, _external=True)})
+
+
+
+# 提交新反馈
+# http方式：POST
+# 成功：返回 data:{order_id,order_title}
+# 失败: 返回验证失败
+# 接口需要的 data:{order_id, order_title, pub_id, start_time, end_time,order_payment, order_info}
+# 备注：需要验证
+@app.route('/api/publish_feedback', methods=['POST'])
+@auth.login_required
+def publish_feedback():
+    rqjson = request.json
+    print(rqjson)
+    post_user_id = g.user.userid
+    info = rqjson.get('info')
+    post_time=int(time.time())
+    if info is None or post_user_id is None:
+        resp = response_err('missing arguments', "400 status")
+        abort(resp)  # missing arguments
+    if User.query.filter_by(userid=post_user_id, user_status='OK').first() is None:
+        resp = response_err('no existing user', "400 status")
+        abort(resp)  # no existing user
+    feedback = Feedback(userid=post_user_id,info=info, post_time=post_time)
+    db.session.add(feedback)
+    db.session.commit()
+    return jsonify({'item_id': feedback.item_id, 'post_time':feedback.post_time}), 201
+
+
+@app.route('/manage/feedback')
+def feedback_list():
+    feddbacks = Feedback.query.all()
+    return render_template('views/feedback_list.html',feedbacks=feddbacks)
+
 
 
 if __name__ == '__main__':

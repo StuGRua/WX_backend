@@ -7,9 +7,10 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_httpauth import HTTPBasicAuth
 import jwt
 from werkzeug.security import generate_password_hash, check_password_hash
-
-app = Flask('test')
+#/www/wwwroot/wxapp/templates/views
+app = Flask('test',template_folder='F:\\Project\\PY\\WX_backend\\templates')
 # # 配置数据库连接
+# app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////www/wwwroot/wxapp/model/test.db'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///F:\\Project\\PY\\WX_backend\\model\\test.db'
 app.config['SQLALCHEMY_COMMIT_ON_TEARDOWN'] = True
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
@@ -84,3 +85,11 @@ class Order(db.Model):
     order_stat = db.Column(db.String(32), default='未接受')
     order_payment = db.Column(db.String(32), default='面议~')
     order_info = db.Column(db.String(255), default='没有详细说明了哦')
+
+
+class Feedback(db.Model):
+    __tablename__ = 'user_feedback'
+    item_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    userid = db.Column(db.BIGINT, nullable=False)
+    post_time = db.Column(db.BIGINT,nullable=False)
+    info = db.Column(db.String(255), default='没有详细说明了哦')
