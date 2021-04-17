@@ -246,7 +246,8 @@ def publish_order():
     end_time = StrtoStamp(rqjson.get('end_time'))
     order_payment = rqjson.get('order_payment')
     order_info = rqjson.get('order_info')
-    print(start_time, end_time)
+    order_img_url=rqjson.get('img_path')
+    print(start_time, end_time,order_img_url)
     if order_title is None or pub_id is None or order_payment is None:
         resp = response_err('missing arguments', "400 status")
         abort(resp)  # missing arguments
@@ -254,10 +255,10 @@ def publish_order():
         resp = response_err('no existing user', "400 status")
         abort(resp)  # no existing user
     order = Order(order_title=order_title, pub_id=pub_id, start_time=start_time, end_time=end_time,
-                  order_payment=order_payment, order_info=order_info)
+                  order_payment=order_payment, order_info=order_info,order_img_url=order_img_url)
     db.session.add(order)
     db.session.commit()
-    return (jsonify({'order_id': order.order_id, 'order_name': order.order_title}), 201)
+    return jsonify({'order_id': order.order_id, 'order_name': order.order_title}), 201
 
 
 # 接受新订单

@@ -4,7 +4,7 @@ def OrderToDict_withP(pre_res):
         return
     res = []
     for x in pre_res:
-        print(x.Order.start_time)
+        # print(x.Order.start_time)
         temp = {
             'order_id': x.Order.order_id,
             'order_title': x.Order.order_title,
@@ -20,7 +20,7 @@ def OrderToDict_withP(pre_res):
             'phonenumber': x.User.phonenumber
         }
         res.append(temp)
-    print('multi:',res)
+    # print('multi:',res)
     return res
 
 
@@ -29,7 +29,7 @@ def OrderToDict(pre_res):
         return
     res = []
     for x in pre_res:
-        print(x.start_time)
+        # print(x.start_time)
         temp = {
             'order_id': x.order_id,
             'order_title': x.order_title,
@@ -44,7 +44,7 @@ def OrderToDict(pre_res):
             'order_info': x.order_info,
         }
         res.append(temp)
-    print(res)
+    # print(res)
     return res
 
 def SimpleOrderToDict(pre_res):

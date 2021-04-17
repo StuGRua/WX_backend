@@ -12,5 +12,5 @@ def StamptoStr(tm):
     timeStamp = tm
     timeArray = time.localtime(timeStamp)
     otherStyleTime = time.strftime("%Y-%m-%d %H:%M", timeArray)
-    print(otherStyleTime)
+    # print(otherStyleTime)
     return otherStyleTime

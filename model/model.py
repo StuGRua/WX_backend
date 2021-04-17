@@ -85,6 +85,7 @@ class Order(db.Model):
     order_stat = db.Column(db.String(32), default='未接受')
     order_payment = db.Column(db.String(32), default='面议~')
     order_info = db.Column(db.String(255), default='没有详细说明了哦')
+    order_img_url = db.Column(db.TEXT,default='NaN')
 
 
 class Feedback(db.Model):
